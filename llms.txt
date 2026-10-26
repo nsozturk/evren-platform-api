@@ -1,0 +1,32 @@
+# evren-platform-api
+
+> evren-platform-api is a free, open-source, unofficial guide and toolkit for the EVREN AI platform's REST API that shows how to create datasets, upload files resumably and publish them, with a ready OpenCode workflow.
+
+Unofficial: not affiliated with or endorsed by SSB or the EVREN platform. Python 3.9+, standard library only, MIT licensed. Primary language English, Turkish mirror in README.tr.md.
+
+## What it does
+
+- Documents the Platform REST API (`https://api.ssyz.org.tr/api/v1`, header `X-API-Key`): key types and scopes, creating NLP datasets through the API, the 3-step upload (presign, PUT, confirm), SHA-256 dedup, verification, error cases.
+- Ships `tools/evren_dataset_upload.py`: manifest, create, upload (resumable journal, retries, progress) and verify subcommands.
+- Ships an OpenCode setup: AGENTS.md contract and the `/evren-publish-dataset` command.
+
+## Use
+
+- Set `EVREN_PLATFORM_KEY` to an `evren_plt_` key, then run `python3 tools/evren_dataset_upload.py manifest|create|upload|verify`.
+- Datasets are created private; making them public is the user's decision.
+
+## Docs
+
+- [README](https://github.com/nsozturk/evren-platform-api/blob/main/README.md): overview, quick start, FAQ, related projects
+- [AGENTS.md](https://github.com/nsozturk/evren-platform-api/blob/main/AGENTS.md): contract for coding agents (commands, env vars, exit codes, safety rules)
+- [API keys](https://github.com/nsozturk/evren-platform-api/blob/main/docs/api/keys.md): hosts, headers, key scopes
+- [Datasets](https://github.com/nsozturk/evren-platform-api/blob/main/docs/api/datasets.md): create, list, delete, items, search, export
+- [Upload](https://github.com/nsozturk/evren-platform-api/blob/main/docs/api/upload.md): 3-step flow with curl and Python, sharding, .npy to Parquet
+- [LLM gateway](https://github.com/nsozturk/evren-platform-api/blob/main/docs/api/llm-gateway.md): short orientation and terms flow
+- [Errors](https://github.com/nsozturk/evren-platform-api/blob/main/docs/api/errors.md): error shape and 401/403 cases
+- [OpenCode](https://github.com/nsozturk/evren-platform-api/blob/main/docs/opencode.md): provider block and command
+
+## Optional
+
+- [Turkish README](https://github.com/nsozturk/evren-platform-api/blob/main/README.tr.md)
+- [Global agent rule snippet](https://github.com/nsozturk/evren-platform-api/blob/main/GLOBAL_AGENT_RULE.md)

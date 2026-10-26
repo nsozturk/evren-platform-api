@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="banner-title banner-desc">
+  <title id="banner-title">evren-platform-api</title>
+  <desc id="banner-desc">Unofficial EVREN Platform API guide and resumable dataset uploader, with a terminal card showing upload progress.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0f19"/>
+      <stop offset="1" stop-color="#161329"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <radialGradient id="glow-teal">
+      <stop offset="0" stop-color="#14b8a6" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#14b8a6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow-violet">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="360" fill="url(#bg)"/>
+  <circle cx="1130" cy="20" r="340" fill="url(#glow-violet)"/>
+  <circle cx="40" cy="350" r="300" fill="url(#glow-teal)"/>
+
+  <!-- Left column: wordmark, tagline, command chip -->
+  <text x="64" y="116" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="50" font-weight="700" fill="#f8fafc">evren-platform<tspan fill="#14b8a6">-api</tspan></text>
+  <rect x="64" y="138" width="96" height="4" rx="2" fill="url(#accent)"/>
+  <g font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="24" fill="#9ca3af">
+    <text x="64" y="180">Unofficial EVREN Platform API guide &amp;</text>
+    <text x="64" y="208">resumable dataset uploader</text>
+  </g>
+  <rect x="64" y="236" width="520" height="44" rx="10" fill="#111827" stroke="#14b8a6" stroke-opacity="0.5" stroke-width="1.5"/>
+  <g font-family="Menlo, Monaco, 'Courier New', monospace" font-size="19">
+    <text x="84" y="264" fill="#14b8a6">$</text>
+    <text x="107" y="264" fill="#e5e7eb">evren-dataset-upload upload ./my-dataset</text>
+  </g>
+
+  <!-- Right: macOS-style terminal card -->
+  <g transform="translate(688, 60)">
+    <rect width="528" height="240" rx="14" fill="#0a0e17"/>
+    <path d="M0,40 V14 Q0,0 14,0 H514 Q528,0 528,14 V40 Z" fill="#131a2a"/>
+    <line x1="0" y1="40" x2="528" y2="40" stroke="#1f2937" stroke-width="1"/>
+    <circle cx="22" cy="20" r="6" fill="#ff5f57"/>
+    <circle cx="42" cy="20" r="6" fill="#febc2e"/>
+    <circle cx="62" cy="20" r="6" fill="#28c840"/>
+    <text x="264" y="25" text-anchor="middle" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#6b7280">evren-dataset-upload — zsh</text>
+    <g font-family="Menlo, Monaco, 'Courier New', monospace" font-size="15" fill="#e5e7eb">
+      <text x="24" y="84"><tspan fill="#8b5cf6">[1/9]</tspan> train-00000.parquet 82 MB in 8s <tspan fill="#14b8a6">(10.4 MB/s)</tspan></text>
+      <text x="24" y="118"><tspan fill="#8b5cf6">[2/9]</tspan> train-00001.parquet 82 MB in 9s <tspan fill="#14b8a6">(9.1 MB/s)</tspan></text>
+      <text x="24" y="152"><tspan fill="#8b5cf6">[9/9]</tspan> train-00008.parquet 41 MB in 4s <tspan fill="#14b8a6">(10.3 MB/s)</tspan></text>
+      <text x="24" y="186" fill="#9ca3af">verify: <tspan fill="#14b8a6" font-weight="700">9/9 sha256 OK</tspan></text>
+    </g>
+    <rect x="24" y="210" width="480" height="6" rx="3" fill="#1f2937"/>
+    <rect x="24" y="210" width="480" height="6" rx="3" fill="url(#accent)"/>
+    <rect width="528" height="240" rx="14" fill="none" stroke="#14b8a6" stroke-opacity="0.45" stroke-width="1.5"/>
+  </g>
+</svg>

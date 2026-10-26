@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this project, please cite it as below."
+title: "evren-platform-api"
+type: software
+abstract: "evren-platform-api is a free, open-source, unofficial guide and toolkit for the EVREN AI platform's REST API that shows how to create datasets, upload files resumably and publish them, with a ready OpenCode workflow."
+authors:
+  - alias: "nsozturk"
+repository-code: "https://github.com/nsozturk/evren-platform-api"
+url: "https://github.com/nsozturk/evren-platform-api"
+license: MIT
+version: 0.1.0
+keywords:
+  - evren
+  - rest-api
+  - dataset-upload
+  - resumable-upload
+  - opencode
+  - ai-agents

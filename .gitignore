@@ -1,0 +1,23 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# tool state, journals and logs (written inside dataset folders)
+.evren_*
+*_journal.jsonl
+*.part
+
+# python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+build/
+dist/
+
+# local scratch and data
+staging/
+data/
+tmp/
+.DS_Store

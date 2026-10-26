@@ -1,0 +1,657 @@
+**evren-platform-api is a free, open-source, unofficial guide and toolkit for the EVREN AI platform's REST API that shows how to create datasets, upload files resumably and publish them, with a ready OpenCode workflow.**
+
+English | [Türkçe](README.tr.md)
+
+> **Unofficial.** This project is not affiliated with or endorsed by SSB or the EVREN platform. "EVREN" is used only to say which API the code works with. No EVREN logo, colours or branding are used. You act under your own account and under the platform's terms; uploaded datasets and models may be used by the platform for training under its user agreement, so read that agreement before you upload.
+
+## Why this exists
+
+Community projects already cover EVREN's **LLM gateway**: an OpenCode provider installer, command-line clients, chat UIs, and an MCP server for training. What nobody had written down is the **Platform REST API for datasets**:
+
+- which API key type can call which endpoint,
+- that an **NLP dataset can be created through the API** even though the web form only offers vision and medical,
+- the three-step upload (presign, PUT, confirm), how deduplication works, and how to verify the result,
+- how to do all of it resumably, from a script or from an AI coding agent.
+
+This repository documents those facts as they were measured against the live API on 2026-10-26, and ships one small tool that does the work.
+
+## Quick start
+
+You need Python 3.9 or newer. There is nothing to install.
+
+**1. Get a key.** In the EVREN web app open Settings -> API Keys and create an `evren_plt_` key (it is shown once).
+
+```bash
+git clone https://github.com/nsozturk/evren-platform-api
+cd evren-platform-api
+export EVREN_PLATFORM_KEY="evren_plt_..."     # your own key; never commit it
+```
+
+**2. Prepare a dataset folder** with your data files, a dataset card and a README:
+
+```bash
+mkdir my-dataset                               # put train.parquet, data.jsonl, ... in it
+cp examples/card.example.json my-dataset/card.json   # edit name, description, license, tags
+$EDITOR my-dataset/README.md                   # the dataset card shown on the platform
+```
+
+**3. Create the dataset** (private NLP; preview first):
+
+```bash
+python3 tools/evren_dataset_upload.py manifest my-dataset
+python3 tools/evren_dataset_upload.py create --card my-dataset/card.json --readme my-dataset/README.md --dry-run
+python3 tools/evren_dataset_upload.py create --card my-dataset/card.json --readme my-dataset/README.md --visibility private
+```
+
+**4. Upload.** Safe to stop and re-run at any point; it resumes.
+
+```bash
+python3 tools/evren_dataset_upload.py upload my-dataset
+```
+
+**5. Verify** that every file is on the server with a matching SHA-256:
+
+```bash
+python3 tools/evren_dataset_upload.py verify my-dataset
+# verify my-dataset: server 9 / manifest 9 | missing [] | extra [] | not ready [] -> OK
+```
+
+The uploader prints timestamped progress lines, retries on 5xx, 429 and network errors with backoff, streams files from disk instead of loading them into memory, and keeps a journal so a re-run skips finished files. Defaults live inside the dataset folder (`.evren_dataset.json`, `.evren_upload_journal.jsonl`, `.evren_upload.log`). Exit codes: `0` ok, `1` operation failed, `2` usage or configuration error.
+
+## Which API key do I need?
+
+| Key | Prefix | Host | Header | Works for |
+|---|---|---|---|---|
+| Full platform key | `evren_plt_` | `https://api.ssyz.org.tr/api/v1` | `X-API-Key` | Datasets, models, billing, catalogue |
+| Models-only key | `evren_mdl_` | same | `X-API-Key` | Models and inference only (dataset calls return 403) |
+| LLM gateway key | `evren_llm_` | `https://evren-llmapi.ssyz.org.tr/v1` | `Authorization: Bearer` | Chat, embeddings, OCR, ... (not the Platform API) |
+
+Dataset work needs `evren_plt_`. Details and the measured scope matrix: [docs/api/keys.md](docs/api/keys.md).
+
+## API reference
+
+| Page | Covers |
+|---|---|
+| [docs/api/keys.md](docs/api/keys.md) | Hosts, headers, key types and scopes, response envelope |
+| [docs/api/datasets.md](docs/api/datasets.md) | Create, list, delete, items, catalogue search, versions, export |
+| [docs/api/upload.md](docs/api/upload.md) | Presign / PUT / confirm with curl and Python, dedup, verification, sharding, `.npy` to Parquet |
+| [docs/api/llm-gateway.md](docs/api/llm-gateway.md) | Short orientation to the LLM gateway and its terms flow |
+| [docs/api/errors.md](docs/api/errors.md) | Error shape, the 401/403 cases, retry guidance, exit codes |
+| [docs/opencode.md](docs/opencode.md) | OpenCode provider block and the repo's OpenCode command |
+
+## Use it with OpenCode
+
+[OpenCode](https://opencode.ai) is the first supported agent harness. The repository contains an [`AGENTS.md`](AGENTS.md) contract and a custom command, so an agent can publish a folder for you:
+
+```bash
+export EVREN_PLATFORM_KEY="evren_plt_..."
+opencode
+# inside OpenCode:
+/evren-publish-dataset ./my-dataset
+```
+
+The command builds the manifest, creates a **private** NLP dataset, uploads, verifies, reports, and asks before anything public. To use EVREN-hosted models as your OpenCode model, add the provider block from [`opencode.example.json`](opencode.example.json) (key from `EVREN_LLM_API_KEY`); see [docs/opencode.md](docs/opencode.md). To give any assistant these instructions globally, paste [`GLOBAL_AGENT_RULE.md`](GLOBAL_AGENT_RULE.md) into its global instructions.
+
+## Platform credits
+
+From the platform's pricing page (2026-10-26; check it for current numbers):
+
+| Item | Credits (CR) |
+|---|---|
+| Starting balance | 1000 |
+| Daily login | +10 |
+| Publishing a dataset | +5 (up to 3 per day) |
+| Item milestones at 100 / 500 / 1K / 5K / 10K | +2 / +5 / +15 / +25 / +40 |
+| Daily earning cap | 100 |
+| GPU training, 1x H200 | 10 per hour |
+
+Milestones count files, not rows; unpublished datasets do not count; the datasets need at least 80 % diversity. The LLM gateway is free and independent of credits (15M tokens per day, 2.5M per 5 minutes, 32 concurrent requests). `GET /billing/balance` returns your balance.
+
+## FAQ
+
+### Can I upload text or tabular data to EVREN?
+
+Yes. Accepted formats include Parquet, Arrow, Feather, SQLite, CSV, TSV, JSON, JSONL, NDJSON, TXT, Markdown and PDF, plus images, audio and video. Create the dataset with `"modality": "NLP"` and upload the files with the three-step flow in [docs/api/upload.md](docs/api/upload.md).
+
+### Why does the web form not offer NLP?
+
+The web "new dataset" form enables only vision and medical datasets, but the API accepts `NLP` (verified on 2026-10-26). This project does not know the platform's intent, so treat NLP-through-the-API as working today but not as a promise.
+
+### Which API key do I need?
+
+An `evren_plt_` key, sent in the `X-API-Key` header, for anything involving datasets. `evren_mdl_` keys are limited to models and inference; `evren_llm_` keys only work on the LLM gateway. See the [table above](#which-api-key-do-i-need).
+
+### Is `.npy` supported?
+
+No. The platform's extension list does not include `.npy`. Convert arrays to Parquet; [docs/api/upload.md](docs/api/upload.md#converting-npy-to-parquet) has a chunked `pyarrow` snippet.
+
+### How large can a file be?
+
+Files of 0.7 KB, 105 MB and 316 MB all uploaded successfully, and no limit was hit up to 316 MB. The tool warns above 280 MB and the guide recommends sharding to stay within what was tested.
+
+### What happens if my upload is interrupted?
+
+Run the same command again. Finished files are skipped from the journal, the server also deduplicates by SHA-256, and `verify` tells you whether anything is missing.
+
+### Does publishing earn credits?
+
+Yes, within the limits in [Platform credits](#platform-credits): +5 CR per published dataset (up to three a day), plus item milestones, capped at 100 CR of earnings per day.
+
+### Is this official?
+
+No. It is an independent community project, not affiliated with or endorsed by SSB or the EVREN platform. See the notice at the top.
+
+### Can an AI agent run this safely?
+
+That is what [`AGENTS.md`](AGENTS.md) is for: keys stay in the environment, datasets are created private, terms are never accepted on your behalf, and nothing is made public without you asking.
+
+## Related projects and alternatives
+
+These community projects are linked by name for convenience; no endorsement is implied and this repository does not duplicate them. They mostly cover the LLM gateway, which is a different surface from the dataset API documented here.
+
+| Project | What it is |
+|---|---|
+| [bykemalh/evren-llm-opencode](https://github.com/bykemalh/evren-llm-opencode) | OpenCode LLM provider installer |
+| [emuzinun/evren-mcp](https://github.com/emuzinun/evren-mcp) | MCP server for cost-approved training from Claude Code |
+| [speker/evren-sdk](https://github.com/speker/evren-sdk) | Python SDK: vision inference and image upload |
+| [necmettincimen/evren-cli](https://github.com/necmettincimen/evren-cli) | Terminal coding assistant on the LLM gateway |
+| [zakcali/evren-chat](https://github.com/zakcali/evren-chat) | Gradio chat client |
+| [erdalnacitunc-create/evren-desktop](https://github.com/erdalnacitunc-create/evren-desktop) | Windows desktop client |
+| [drdoof2019/EvrenLLM-Kullanim](https://github.com/drdoof2019/EvrenLLM-Kullanim) | LLM gateway usage notes (Turkish) |
+
+This repository fills the gap for text and tabular datasets, resumable transfers and AI-agent use.
+
+## Other CLIs: planned
+
+OpenCode is supported first; ready-made setups for Claude Code, Codex, Gemini CLI and Cursor are planned.
+
+## License
+
+[MIT](LICENSE). Contributions are welcome through issues and pull requests; please keep the tool standard-library only and the tests offline.
+
+---
+
+# API keys and authentication
+
+EVREN exposes two separate HTTP surfaces. They use different hosts, different headers and different key types. Mixing them up is the most common cause of `401` and `403` errors (see [errors.md](errors.md)).
+
+| Surface | Base URL | Auth header | Key prefix |
+|---|---|---|---|
+| Platform REST API (datasets, models, billing, catalogue) | `https://api.ssyz.org.tr/api/v1` | `X-API-Key: <key>` | `evren_plt_` (full access), `evren_mdl_` (models and inference only) |
+| LLM gateway (chat, embeddings, OCR, ...) | `https://evren-llmapi.ssyz.org.tr/v1` | `Authorization: Bearer <key>` (`X-API-Key` is also accepted) | `evren_llm_` |
+
+For `evren_` keys the Platform API rejects `Authorization: Bearer` with a `401` ("Geçersiz token"). Always send `X-API-Key` there.
+
+## Creating a key
+
+Keys are created in the EVREN web app under **Settings -> API Keys** (`/api-keys` on `https://evren.ssyz.org.tr`). The full key is shown once; copy it when it appears.
+
+Pick the type from what you need:
+
+- Creating, listing or uploading datasets -> `evren_plt_`.
+- Only running models / inference -> `evren_mdl_`.
+- Only calling the LLM gateway -> `evren_llm_`.
+
+## What each key can call
+
+Measured against the live API on 2026-10-26:
+
+| Key | `GET /auth/me` | `GET /datasets` | `GET /models` | LLM gateway `GET /v1/models` |
+|---|---|---|---|---|
+| `evren_plt_` | 200 | 200 | 200 | 401 |
+| `evren_mdl_` | 403 "only inference and model endpoints" | 403 | 200 | 401 |
+| `evren_llm_` | 401 | 401 | 401 | 200 after the terms are accepted, otherwise 403 `terms_not_accepted` |
+
+So dataset work needs an `evren_plt_` key, and an LLM-gateway key cannot touch the Platform API at all.
+
+## Keeping the key out of your repo
+
+This toolkit reads the Platform key from one environment variable:
+
+```bash
+export EVREN_PLATFORM_KEY="evren_plt_..."   # paste your own key; never commit it
+```
+
+Optional, macOS only: store it in the login Keychain once and load it per command so it never sits in your shell history or dotfiles.
+
+```bash
+security add-generic-password -s evren-platform-key -a "$USER" -w     # prompts for the value
+EVREN_PLATFORM_KEY="$(security find-generic-password -s evren-platform-key -a "$USER" -w)" \
+  python3 tools/evren_dataset_upload.py verify ./my-dataset
+```
+
+For the LLM gateway, OpenCode reads `EVREN_LLM_API_KEY` (see [../opencode.md](../opencode.md)).
+
+## Smoke test
+
+```bash
+curl -sS https://api.ssyz.org.tr/api/v1/auth/me -H "X-API-Key: $EVREN_PLATFORM_KEY"
+curl -sS https://api.ssyz.org.tr/api/v1/billing/balance -H "X-API-Key: $EVREN_PLATFORM_KEY"
+```
+
+`/billing/balance` returns `{balance, available, held, total_earned, total_spent}` in credits (CR).
+
+## Response envelope
+
+Most endpoints answer `{success, data, message}`. Some return the object directly: `POST /datasets` returns the dataset, `GET /datasets` returns a bare list and `GET /models` returns `{items, total}`. Write client code that tolerates both shapes. The bundled uploader unwraps `{success, data}` when present.
+
+---
+
+# Datasets
+
+Base URL `https://api.ssyz.org.tr/api/v1`, header `X-API-Key: <evren_plt_ key>`. File upload has its own page: [upload.md](upload.md).
+
+Status legend: **verified** means exercised against the live API on 2026-10-26. **documented** means taken from the platform's own guide and not exercised by this project.
+
+## Create a dataset - `POST /datasets` (verified)
+
+```json
+{
+  "name": "my-text-dataset",
+  "modality": "NLP",
+  "description": "What it contains.",
+  "readme": "# My dataset\n\nMarkdown card.",
+  "visibility": "private",
+  "license": "MIT",
+  "tags": ["nlp", "text"]
+}
+```
+
+| Field | Notes |
+|---|---|
+| `name`, `modality`, `visibility` | Required. `modality` is one of `VISION`, `AUDIO`, `NLP`, `MULTIMODAL`, `MEDICAL`. `visibility` is `public`, `private` or `unlisted`. |
+| `description`, `readme`, `license` | Optional. |
+| `tags` | Optional, at most 10. |
+| `contributions_enabled`, `org_id` | Optional. |
+| `task_profile` | Optional, used with `MEDICAL`. |
+
+The response is the dataset object itself (not wrapped): `id`, `slug`, `owner_username`, and more. Keep the `id`; every other call uses it.
+
+**NLP datasets work through the API.** The web "new dataset" form only enables `VISION` and `MEDICAL`, but the API accepts `"modality": "NLP"`. This is the main non-obvious fact this project documents. Start with `"visibility": "private"` and change it only after you have verified the contents.
+
+Changing visibility later is done in the dataset settings of the web app. The exact API call for the flip has not been verified here; a `PATCH` may exist, but treat that as unverified.
+
+## List datasets - `GET /datasets` (verified)
+
+Query parameters:
+
+- `scope` = `all`, `owned` or `shared`. Any other value returns `VALIDATION_ERROR`.
+- `visibility` and `modality` filters.
+
+The response is a bare JSON list.
+
+```bash
+curl -sS "https://api.ssyz.org.tr/api/v1/datasets?scope=owned&modality=NLP" -H "X-API-Key: $EVREN_PLATFORM_KEY"
+```
+
+## Resolve by owner and slug - `GET /datasets/{owner}/{slug}` (documented)
+
+Useful when you only know the public name.
+
+## List items - `GET /datasets/{id}/items` (verified)
+
+Query: `limit` (200 at most) and `cursor`. Response:
+
+```json
+{
+  "items": [
+    {"id": "...", "original_filename": "train-00000.parquet", "file_type": "document",
+     "sha256_hash": "...", "status": "ready", "split": "..."}
+  ],
+  "next_cursor": ""
+}
+```
+
+Page until `next_cursor` is empty. Items carry the SHA-256 you uploaded, so you can verify a dataset against a local manifest by hash. `tools/evren_dataset_upload.py verify` does exactly that. In practice a `.jsonl` file becomes `file_type: text`, a `.parquet` file becomes `file_type: document`, and `status` is `ready` right after confirmation.
+
+## Delete - `DELETE /datasets/{id}` (verified)
+
+Returns `204`. This removes the dataset; treat it as irreversible and only run it on datasets you created for testing.
+
+## Search the public catalogue - `GET /universe/search` (verified)
+
+Query: `q`, `type` (`dataset` or `model`), `modality`, `limit`, `offset`.
+
+```bash
+curl -sS "https://api.ssyz.org.tr/api/v1/universe/search?q=cve&type=dataset&limit=5" -H "X-API-Key: $EVREN_PLATFORM_KEY"
+```
+
+## Versions and export (documented, not exercised)
+
+| Call | Purpose |
+|---|---|
+| `GET /datasets/{id}/versions` | List dataset versions. |
+| `GET /datasets/{id}/export/formats` | Export formats available for the dataset. |
+| `GET /datasets/{id}/export/download?format=<fmt>&version_tag=<tag>` | Download an export. `format` is `YOLO_TXT`, `COCO_JSON`, `VOC_XML` or `CSV`. |
+
+The annotation formats are aimed at vision datasets. Check `export/formats` for what a given dataset offers before relying on one.
+
+## Credits
+
+Publishing and growing datasets earns credits, and GPU training spends them. See the credits section of the [README](../../README.md#does-publishing-earn-credits). The LLM gateway is free and independent of credits.
+
+---
+
+# Uploading files
+
+Uploading is a three-step flow per file: **presign**, **PUT**, **confirm**. A file that is not confirmed is not added to the dataset.
+
+Base URL `https://api.ssyz.org.tr/api/v1`, header `X-API-Key: <evren_plt_ key>` on all three steps. You need the dataset `id` from [datasets.md](datasets.md).
+
+## What you can upload
+
+`GET /datasets/upload/extensions` returns `{extensions: [...], by_file_type: {image, video, audio, text, ...}}`. The accepted list includes `.parquet`, `.arrow`, `.feather`, `.sqlite`, `.db`, `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson`, `.txt`, `.md`, `.pdf`, `.tar`, `.tgz`, `.tar.gz`, common image, audio and video formats, and `.dcm`.
+
+**`.npy` is not accepted.** Convert NumPy arrays to Parquet first (see below).
+
+## Step 1 - presign
+
+`POST /datasets/{id}/upload/presign`
+
+```json
+{"files": [{"filename": "train-00000.parquet", "sha256_hash": "<hex>", "file_size": 82455248}]}
+```
+
+`client_uid` is an optional extra field on each file entry. Response:
+
+```json
+{
+  "presigned_urls": [
+    {"filename": "train-00000.parquet", "sha256_hash": "<hex>",
+     "upload_url": "/datasets/<id>/upload/put?key=<object key>",
+     "direct_upload_url": "...", "object_key": "<object key>"}
+  ],
+  "duplicates": ["<sha256 of files the dataset already has>"]
+}
+```
+
+- `upload_url` is **relative**. Prefix it with the API base (`https://api.ssyz.org.tr/api/v1`).
+- If the dataset already contains a file with the same SHA-256, that hash comes back in `duplicates` and you skip the file. This makes re-runs cheap and safe.
+
+## Step 2 - PUT the bytes
+
+`PUT <api base><upload_url>` with the raw file as the body, headers `X-API-Key` and `Content-Type: application/octet-stream`. Response: `{"ok": true, "key": "...", "size": N}`.
+
+Stream the file from disk instead of reading it into memory.
+
+## Step 3 - confirm
+
+`POST /datasets/{id}/upload/confirm`
+
+```json
+{"items": [{"object_key": "<object key>", "sha256_hash": "<hex>", "filename": "train-00000.parquet", "file_size": 82455248}]}
+```
+
+Returns `201` with `{created, ids, actual_count, batch_duplicates}`.
+
+## Size and sharding
+
+Single files of 0.7 KB, 105 MB and 316 MB all uploaded fine, at roughly 8-11 MB/s from Türkiye. No per-file limit was hit up to 316 MB. This project shards at 280 MB or less so every file stays inside what was actually tested. Split large Parquet or JSONL files into numbered shards (`train-00000-of-00009.parquet`) before uploading.
+
+## Example: curl
+
+A complete single-file script lives in [`examples/curl-upload.sh`](../../examples/curl-upload.sh). The core calls:
+
+```bash
+API=https://api.ssyz.org.tr/api/v1
+SHA=$(shasum -a 256 train-00000.parquet | cut -d' ' -f1)      # sha256sum on Linux
+SIZE=$(wc -c < train-00000.parquet | tr -d ' ')
+
+# 1) presign
+curl -sS -X POST "$API/datasets/$DATASET_ID/upload/presign" \
+  -H "X-API-Key: $EVREN_PLATFORM_KEY" -H "Content-Type: application/json" \
+  -d "{\"files\":[{\"filename\":\"train-00000.parquet\",\"sha256_hash\":\"$SHA\",\"file_size\":$SIZE}]}"
+
+# 2) PUT (use the relative upload_url from step 1; -T streams the file)
+curl -sS -T train-00000.parquet "$API<upload_url>" \
+  -H "X-API-Key: $EVREN_PLATFORM_KEY" -H "Content-Type: application/octet-stream"
+
+# 3) confirm
+curl -sS -X POST "$API/datasets/$DATASET_ID/upload/confirm" \
+  -H "X-API-Key: $EVREN_PLATFORM_KEY" -H "Content-Type: application/json" \
+  -d "{\"items\":[{\"object_key\":\"<object_key>\",\"sha256_hash\":\"$SHA\",\"filename\":\"train-00000.parquet\",\"file_size\":$SIZE}]}"
+```
+
+## Example: Python standard library
+
+```python
+import hashlib, json, os, urllib.request
+
+API = "https://api.ssyz.org.tr/api/v1"
+KEY = os.environ["EVREN_PLATFORM_KEY"]
+
+
+def call(method, path, body=None, stream=None, size=None):
+    headers = {"X-API-Key": KEY}
+    data = None
+    if stream is not None:                      # open file object: streamed, not read into memory
+        data = stream
+        headers.update({"Content-Type": "application/octet-stream", "Content-Length": str(size)})
+    elif body is not None:
+        data = json.dumps(body).encode()
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(API + path, data=data, method=method, headers=headers)
+    with urllib.request.urlopen(req, timeout=1800) as r:
+        raw = r.read()
+        return json.loads(raw) if raw.strip() else {}
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def upload(dataset_id, path):
+    name, size, sha = os.path.basename(path), os.path.getsize(path), sha256(path)
+    pre = call("POST", f"/datasets/{dataset_id}/upload/presign",
+               {"files": [{"filename": name, "sha256_hash": sha, "file_size": size}]})
+    if sha in (pre.get("duplicates") or []):
+        return "duplicate, skipped"
+    u = pre["presigned_urls"][0]
+    with open(path, "rb") as f:
+        call("PUT", u["upload_url"], stream=f, size=size)
+    return call("POST", f"/datasets/{dataset_id}/upload/confirm",
+                {"items": [{"object_key": u["object_key"], "sha256_hash": sha, "filename": name, "file_size": size}]})
+```
+
+This sketch has no retries or journal. For real jobs use [`tools/evren_dataset_upload.py`](../../tools/evren_dataset_upload.py), which adds retry with backoff on 5xx, 429 and network errors, a resumable journal, progress lines and `verify`.
+
+## Verify
+
+After confirming, page through `GET /datasets/{id}/items?limit=200` (follow `next_cursor` until it is empty) and compare the `sha256_hash` values with your local manifest. Every file should be there with `status: ready`, and nothing extra. With the bundled tool:
+
+```bash
+python3 tools/evren_dataset_upload.py verify ./my-dataset
+# verify my-dataset: server 9 / manifest 9 | missing [] | extra [] | not ready [] -> OK
+```
+
+## Converting `.npy` to Parquet
+
+The platform rejects `.npy`, but Parquet is accepted and is a better container for embeddings anyway. This needs `pyarrow` and `numpy` (not required by the uploader itself). It assumes a 2-D array `(rows, dims)` and writes in chunks so large arrays do not have to fit in memory:
+
+```python
+import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+arr = np.load("vectors.npy", mmap_mode="r")          # shape (rows, dims)
+writer = None
+for start in range(0, len(arr), 100_000):
+    chunk = np.ascontiguousarray(arr[start:start + 100_000])
+    table = pa.table({
+        "id": np.arange(start, start + len(chunk)),
+        "vector": pa.FixedSizeListArray.from_arrays(pa.array(chunk.reshape(-1)), chunk.shape[1]),
+    })
+    writer = writer or pq.ParquetWriter("vectors.parquet", table.schema, compression="zstd")
+    writer.write_table(table)
+writer.close()
+```
+
+Shard the result if it is larger than about 280 MB.
+
+---
+
+# LLM gateway (short)
+
+This repository is about the Platform REST API for datasets. The LLM gateway is a separate service; this page only orients you and links out. Community projects that cover it in depth are listed in the [README](../../README.md#related-projects-and-alternatives).
+
+| | |
+|---|---|
+| Base URL | `https://evren-llmapi.ssyz.org.tr/v1` |
+| Auth | `Authorization: Bearer <evren_llm_ key>` (`X-API-Key` is also accepted) |
+| OpenAPI | `https://evren-llmapi.ssyz.org.tr/openapi.json` |
+| Docs UI | `https://evren-llmapi.ssyz.org.tr/docs` |
+
+Endpoints: `chat/completions`, `completions`, `messages` (Anthropic-style), `responses`, `embeddings`, `rerank`, `models`, `ocr`, `audio`, `media`, `quota`, and `terms/{status,text,accept}`.
+
+Per the platform's pricing page the gateway is free, independent of credits, with limits of 15M tokens per day, 2.5M per 5 minutes and 32 concurrent requests.
+
+## Terms must be accepted first
+
+The first call with a new key returns `403 terms_not_accepted` until the account accepts the gateway terms:
+
+1. `/v1/terms/status` shows whether they are accepted.
+2. `GET /v1/terms/text` returns the terms. **Read them yourself.**
+3. `POST /v1/terms/accept` with `{"version": 1}` records acceptance.
+
+Accepting terms is a legal act by the account owner. Scripts and coding agents should not do it for you; see the safety rules in [../../AGENTS.md](../../AGENTS.md).
+
+## Models (as listed on 2026-10-26)
+
+| Model | Notes |
+|---|---|
+| `glm-5.3` | 524K context |
+| `deepseek-v4.1-flash` | 1M context |
+| `mimo-v2.6-pro` | 1M context |
+| `qwen3.8-flash-next` | chat |
+| `gemma-4-31b` | chat |
+| `qwen3-vl-30b` | vision |
+| `auto` | 32K router, no tool calls |
+
+The list changes; ask `GET /v1/models` for the current one.
+
+## Using it from OpenCode
+
+See [../opencode.md](../opencode.md) for the provider block and the community installer.
+
+---
+
+# Errors
+
+## Shape
+
+Failed Platform API calls normally answer:
+
+```json
+{"success": false, "error": {"code": "VALIDATION_ERROR", "message": "...", "details": {}}}
+```
+
+Successful calls usually answer `{success, data, message}`, though some return the object or list directly (see [keys.md](keys.md#response-envelope)). Check the HTTP status first, then read `error.code` and `error.message`.
+
+## Cases seen while testing
+
+All observed on 2026-10-26.
+
+| Situation | Status | What it means / fix |
+|---|---|---|
+| `Authorization: Bearer evren_plt_...` against the Platform API | 401 "Geçersiz token" | Use the `X-API-Key` header instead. |
+| `evren_mdl_` key on `/auth/me` or `/datasets` | 403 "only inference and model endpoints" | A models-only key. Create an `evren_plt_` key for dataset work. |
+| `evren_llm_` key on the Platform API (`/auth/me`, `/datasets`, `/models`) | 401 | LLM-gateway keys do not work on the Platform API. |
+| `evren_plt_` key on the LLM gateway (`/v1/models`) | 401 | Platform keys do not work on the gateway. Use an `evren_llm_` key. |
+| `evren_llm_` key on the gateway before accepting terms | 403 `terms_not_accepted` | Read and accept the terms yourself; see [llm-gateway.md](llm-gateway.md). |
+| `GET /datasets?scope=<anything but all/owned/shared>` | `VALIDATION_ERROR` | Use `all`, `owned` or `shared`. |
+| Uploading a `.npy` file | rejected by the extension check | Convert to Parquet; see [upload.md](upload.md#converting-npy-to-parquet). |
+
+The exact wording and code of the `.npy` rejection were not captured; check `GET /datasets/upload/extensions` before uploading.
+
+## Retrying
+
+- `5xx`, `429` and network failures are worth retrying with exponential backoff. `tools/evren_dataset_upload.py` waits 5 s, 10 s, 20 s, ... (capped at 120 s) for up to 4 attempts by default.
+- Other `4xx` responses are not transient. Fix the request or the key instead of retrying.
+- A repeated upload is safe: the server dedups by SHA-256, and the tool's journal skips files it already finished.
+
+## Tool exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Success. |
+| 1 | The operation failed: a file failed to upload, `verify` found a mismatch, or the API returned an error. |
+| 2 | Usage or configuration error, such as a missing `EVREN_PLATFORM_KEY` or a missing manifest. |
+
+---
+
+# Using EVREN with OpenCode
+
+[OpenCode](https://opencode.ai) is the first supported agent harness for this repository. Other CLIs (Claude Code, Codex, Gemini CLI, Cursor) are planned; the `AGENTS.md` contract is plain markdown, so most of them can already read it.
+
+There are two separate things you may want, and they use two different keys:
+
+| Goal | Key | Where it goes |
+|---|---|---|
+| Use EVREN-hosted models as the coding model in OpenCode | `evren_llm_` | `EVREN_LLM_API_KEY`, read by the provider block below |
+| Let the agent create and upload datasets | `evren_plt_` | `EVREN_PLATFORM_KEY`, read by `tools/evren_dataset_upload.py` |
+
+## 1. EVREN as an OpenCode provider
+
+The LLM gateway speaks the OpenAI-compatible protocol. Add a provider to your `opencode.json` (this repository ships the same block as [`opencode.example.json`](../opencode.example.json)):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "evren": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "EVREN",
+      "options": {
+        "baseURL": "https://evren-llmapi.ssyz.org.tr/v1",
+        "apiKey": "{env:EVREN_LLM_API_KEY}"
+      },
+      "models": {
+        "glm-5.3": { "name": "GLM 5.3" },
+        "deepseek-v4.1-flash": { "name": "DeepSeek V4.1 Flash" },
+        "mimo-v2.6-pro": { "name": "MiMo V2.6 Pro" }
+      }
+    }
+  }
+}
+```
+
+```bash
+export EVREN_LLM_API_KEY="evren_llm_..."    # your own key; never commit it
+opencode                                      # then pick evren/glm-5.3 with /models
+```
+
+The key never appears in the file: OpenCode substitutes `{env:EVREN_LLM_API_KEY}` at load time. The first use of a new LLM key requires accepting the gateway terms, which you do yourself; see [api/llm-gateway.md](api/llm-gateway.md).
+
+For a ready-made installer that sets the provider up for you, see the community project [bykemalh/evren-llm-opencode](https://github.com/bykemalh/evren-llm-opencode).
+
+## 2. Dataset publishing with the repo's OpenCode command
+
+This repository contains a custom OpenCode command at [`.opencode/command/evren-publish-dataset.md`](../.opencode/command/evren-publish-dataset.md). It also provides `AGENTS.md`, which OpenCode reads automatically as project instructions.
+
+```bash
+git clone https://github.com/nsozturk/evren-platform-api
+cd evren-platform-api
+export EVREN_PLATFORM_KEY="evren_plt_..."
+opencode
+```
+
+Then, inside OpenCode:
+
+```
+/evren-publish-dataset ./path/to/my-folder
+```
+
+The command walks the agent through: check the folder (data files plus `card.json` and `README.md`), warn about `.npy` and oversized files, preview the request with `--dry-run`, build the manifest, create a **private** NLP dataset, upload, verify by SHA-256, and report. It asks before anything public.
+
+To use the command from another project, copy `.opencode/command/evren-publish-dataset.md` and `tools/evren_dataset_upload.py` into it (and adjust the script path in the command), or paste [`GLOBAL_AGENT_RULE.md`](../GLOBAL_AGENT_RULE.md) into your global OpenCode instructions.
+
+## Safety notes for agents
+
+- The agent must never print or write `EVREN_PLATFORM_KEY`.
+- Datasets are created private. Making one public is your decision, made in the web app.
+- Accepting the LLM gateway terms is yours to do, not the agent's.
+- Uploaded datasets may be used by the platform for training under its user agreement; read the agreement before uploading anything you do not want used that way.

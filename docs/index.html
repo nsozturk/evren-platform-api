@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>evren-platform-api - Dataset Upload Guide and Toolkit for the EVREN Platform API</title>
+
+  <!-- SEO -->
+  <meta name="description" content="evren-platform-api is a free, open-source, unofficial guide and toolkit for the EVREN AI platform's REST API that shows how to create datasets, upload files resumably and publish them, with a ready OpenCode workflow.">
+  <meta name="keywords" content="evren, evren platform, evren api, ssb evren, dataset upload, resumable upload, nlp dataset, turkish ai, opencode, ai agents, python stdlib, rest api">
+  <meta name="author" content="nsozturk">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://nsozturk.github.io/evren-platform-api/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nsozturk.github.io/evren-platform-api/">
+  <meta property="og:title" content="evren-platform-api - Dataset Upload Guide and Toolkit for the EVREN Platform API">
+  <meta property="og:description" content="Unofficial guide and toolkit for the EVREN platform REST API: create NLP datasets, upload files resumably, verify by SHA-256, and let OpenCode do it for you.">
+  <meta property="og:image" content="https://raw.githubusercontent.com/nsozturk/evren-platform-api/main/assets/banner.png">
+  <meta property="og:site_name" content="evren-platform-api Documentation">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://nsozturk.github.io/evren-platform-api/">
+  <meta name="twitter:title" content="evren-platform-api - Dataset Upload Guide and Toolkit for the EVREN Platform API">
+  <meta name="twitter:description" content="Create NLP datasets, upload files resumably and verify them on the EVREN platform API. Python stdlib only, OpenCode ready, unofficial.">
+  <meta name="twitter:image" content="https://raw.githubusercontent.com/nsozturk/evren-platform-api/main/assets/banner.png">
+
+  <!-- Schema.org JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "evren-platform-api",
+    "operatingSystem": "macOS, Linux, Windows",
+    "applicationCategory": "DeveloperApplication",
+    "description": "evren-platform-api is a free, open-source, unofficial guide and toolkit for the EVREN AI platform's REST API that shows how to create datasets, upload files resumably and publish them, with a ready OpenCode workflow.",
+    "softwareVersion": "0.1.0",
+    "url": "https://nsozturk.github.io/evren-platform-api/",
+    "license": "https://opensource.org/licenses/MIT",
+    "codeRepository": "https://github.com/nsozturk/evren-platform-api",
+    "downloadUrl": "https://github.com/nsozturk/evren-platform-api",
+    "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+    "author": {"@type": "Person", "name": "nsozturk", "url": "https://github.com/nsozturk"}
+  }
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Can I upload text or tabular data to EVREN?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Accepted formats include Parquet, Arrow, Feather, SQLite, CSV, TSV, JSON, JSONL, NDJSON, TXT, Markdown and PDF, plus images, audio and video. Create the dataset with \"modality\": \"NLP\" and upload the files with the three-step flow in docs/api/upload.md."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why does the web form not offer NLP?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The web \"new dataset\" form enables only vision and medical datasets, but the API accepts NLP (verified on 2026-10-26). This project does not know the platform's intent, so treat NLP-through-the-API as working today but not as a promise."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which API key do I need?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "An evren_plt_ key, sent in the X-API-Key header, for anything involving datasets. evren_mdl_ keys are limited to models and inference; evren_llm_ keys only work on the LLM gateway. See the table above."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is .npy supported?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. The platform's extension list does not include .npy. Convert arrays to Parquet; docs/api/upload.md has a chunked pyarrow snippet."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How large can a file be?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Files of 0.7 KB, 105 MB and 316 MB all uploaded successfully, and no limit was hit up to 316 MB. The tool warns above 280 MB and the guide recommends sharding to stay within what was tested."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens if my upload is interrupted?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Run the same command again. Finished files are skipped from the journal, the server also deduplicates by SHA-256, and verify tells you whether anything is missing."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does publishing earn credits?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, within the limits in Platform credits: +5 CR per published dataset (up to three a day), plus item milestones, capped at 100 CR of earnings per day."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is this official?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. It is an independent community project, not affiliated with or endorsed by SSB or the EVREN platform. See the notice at the top."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can an AI agent run this safely?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "That is what AGENTS.md is for: keys stay in the environment, datasets are created private, terms are never accepted on your behalf, and nothing is made public without you asking."
+      }
+    }
+  ]
+}
+  </script>
+
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #0f172a;
+      --sidebar-bg: #0b1120;
+      --border: #1e293b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #8b5cf6;
+      --accent-glow: rgba(139, 92, 246, 0.15);
+      --warn: #f59e0b;
+      --code-bg: #030712;
+      --sidebar-width: 280px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden;
+    }
+    a { color: var(--accent); }
+    header.navbar {
+      position: sticky; top: 0; z-index: 50; height: 64px;
+      background: rgba(9, 13, 22, 0.88); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 1.25rem; color: #fff; text-decoration: none; }
+    .brand .badge { background: var(--accent-glow); color: var(--accent); border: 1px solid var(--accent); font-size: 0.75rem; padding: 2px 8px; border-radius: 9999px; font-weight: 600; }
+    .nav-actions { display: flex; align-items: center; gap: 16px; }
+    .nav-link { color: var(--text-muted); text-decoration: none; font-weight: 500; font-size: 0.9rem; }
+    .nav-link:hover { color: #fff; }
+    .btn-github { background: #1e293b; color: #fff; padding: 6px 14px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px; border: 1px solid #334155; }
+    .btn-github:hover { background: #334155; }
+    .container { display: flex; max-width: 1440px; margin: 0 auto; }
+    aside.sidebar { width: var(--sidebar-width); flex: none; position: sticky; top: 64px; height: calc(100vh - 64px); background: var(--sidebar-bg); border-right: 1px solid var(--border); padding: 24px 16px; overflow-y: auto; }
+    .search-box { margin-bottom: 20px; }
+    .search-box input { width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 0.85rem; outline: none; }
+    .search-box input:focus { border-color: var(--accent); }
+    .nav-section { margin-bottom: 24px; }
+    .nav-section-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 8px; font-weight: 700; padding-left: 8px; }
+    .nav-menu-item { display: block; padding: 7px 12px; color: var(--text-muted); text-decoration: none; font-size: 0.9rem; font-weight: 500; border-radius: 6px; margin-bottom: 2px; border-left: 3px solid transparent; }
+    .nav-menu-item:hover, .nav-menu-item.active { color: #fff; background: rgba(139, 92, 246, 0.12); border-left-color: var(--accent); }
+    main.content { flex: 1; min-width: 0; padding: 40px 60px; max-width: 960px; }
+    .banner-hero { width: 100%; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 32px; overflow: hidden; display: block; background: var(--card-bg); min-height: 40px; }
+    .banner-hero img { width: 100%; height: auto; display: block; }
+    h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.02em; line-height: 1.2; }
+    h2 { font-size: 1.75rem; font-weight: 700; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1.2rem; font-weight: 600; margin: 24px 0 10px; color: #fff; }
+    p { margin-bottom: 16px; color: #cbd5e1; }
+    ul, ol { margin: 0 0 16px 22px; color: #cbd5e1; }
+    li { margin-bottom: 6px; }
+    section { scroll-margin-top: 80px; }
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; overflow-x: auto; margin: 16px 0 24px; position: relative; }
+    pre code { font-size: 0.85rem; line-height: 1.5; color: #e2e8f0; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88rem; }
+    p code, li code, td code, th code { background: #1e293b; color: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 0.82rem; overflow-wrap: anywhere; }
+    .copy-btn { position: absolute; top: 10px; right: 10px; background: #1e293b; color: var(--text-muted); border: 1px solid #334155; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
+    .copy-btn:hover { color: #fff; background: #334155; }
+    .table-wrap { overflow-x: auto; margin: 20px 0 30px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; font-size: 0.9rem; vertical-align: top; color: #cbd5e1; }
+    th { background: var(--card-bg); color: #fff; font-weight: 600; }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin: 24px 0; }
+    .feature-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .feature-card h4 { font-size: 1.02rem; margin-bottom: 8px; color: #fff; }
+    .feature-card p { font-size: 0.88rem; margin: 0; color: var(--text-muted); }
+    .notice { border: 1px solid var(--warn); background: rgba(245, 158, 11, 0.08); border-radius: 10px; padding: 14px 18px; margin: 20px 0; }
+    .notice p { margin: 0; color: #fde68a; font-size: 0.92rem; }
+    .lead { font-size: 1.05rem; }
+    .faq-item h3 { margin-top: 20px; }
+    .no-results { display: none; color: var(--text-muted); padding: 24px 0; }
+    footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-muted); text-align: center; }
+    @media (max-width: 900px) {
+      aside.sidebar { display: none; }
+      main.content { padding: 24px 16px; }
+      h1 { font-size: 1.9rem; }
+      .nav-link { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="#overview" class="brand">evren-platform-api <span class="badge">v0.1.0</span></a>
+    <div class="nav-actions">
+      <a href="#quick-start" class="nav-link">Quick Start</a>
+      <a href="#api-reference" class="nav-link">API</a>
+      <a href="#opencode" class="nav-link">OpenCode</a>
+      <a href="#faq" class="nav-link">FAQ</a>
+      <a href="https://github.com/nsozturk/evren-platform-api" target="_blank" rel="noopener" class="btn-github">
+        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+        GitHub
+      </a>
+    </div>
+  </header>
+
+  <div class="container">
+    <aside class="sidebar">
+      <div class="search-box">
+        <input type="search" id="docSearch" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Getting Started</div>
+        <a href="#overview" class="nav-menu-item active">Overview</a>
+        <a href="#why" class="nav-menu-item">Why this exists</a>
+        <a href="#quick-start" class="nav-menu-item">Quick Start</a>
+        <a href="#tool" class="nav-menu-item">The upload tool</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">API Reference</div>
+        <a href="#api-reference" class="nav-menu-item">Overview</a>
+        <a href="#keys" class="nav-menu-item">Keys &amp; authentication</a>
+        <a href="#datasets" class="nav-menu-item">Datasets</a>
+        <a href="#upload" class="nav-menu-item">Uploading files</a>
+        <a href="#llm-gateway" class="nav-menu-item">LLM gateway</a>
+        <a href="#errors" class="nav-menu-item">Errors</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">AI Agents</div>
+        <a href="#opencode" class="nav-menu-item">OpenCode</a>
+        <a href="#safety" class="nav-menu-item">Safety rules</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">More</div>
+        <a href="#credits" class="nav-menu-item">Platform credits</a>
+        <a href="#faq" class="nav-menu-item">FAQ</a>
+        <a href="#related" class="nav-menu-item">Related projects</a>
+        <a href="#license" class="nav-menu-item">License</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div class="banner-hero">
+        <img src="assets/banner.png" onerror="this.src='../assets/banner.png'" alt="evren-platform-api Banner">
+      </div>
+
+      <section id="overview">
+        <h1>evren-platform-api Documentation</h1>
+        <p class="lead"><strong>evren-platform-api is a free, open-source, unofficial guide and toolkit for the EVREN AI platform's REST API that shows how to create datasets, upload files resumably and publish them, with a ready OpenCode workflow.</strong></p>
+        <div class="notice"><p><strong>Unofficial.</strong> This project is not affiliated with or endorsed by SSB or the EVREN platform. "EVREN" is used only to say which API the code works with. No EVREN logo, colours or branding are used. You act under your own account and under the platform's terms; uploaded datasets and models may be used by the platform for training under its user agreement, so read that agreement before you upload.</p></div>
+        <div class="feature-grid">
+          <div class="feature-card"><h4>Resumable uploads</h4><p>Journal, retry with backoff, SHA-256 dedup. Stop and re-run at any point.</p></div>
+          <div class="feature-card"><h4>NLP via the API</h4><p>The web form offers only vision and medical, but the API accepts <code>NLP</code>.</p></div>
+          <div class="feature-card"><h4>Verify by hash</h4><p>Compare the server's file list with your local manifest, SHA-256 for SHA-256.</p></div>
+          <div class="feature-card"><h4>Stdlib only</h4><p>Python 3.9+ and nothing to install. Tests run offline.</p></div>
+          <div class="feature-card"><h4>OpenCode ready</h4><p><code>AGENTS.md</code> contract plus the <code>/evren-publish-dataset</code> command.</p></div>
+          <div class="feature-card"><h4>Measured, not guessed</h4><p>Facts were checked against the live API on 2026-10-26 and marked verified or documented.</p></div>
+        </div>
+      </section>
+
+      <section id="why">
+        <h2>Why this exists</h2>
+        <p>Community projects already cover EVREN's <strong>LLM gateway</strong>: an OpenCode provider installer, command-line clients, chat UIs, and an MCP server for training. What nobody had written down is the <strong>Platform REST API for datasets</strong>:</p>
+        <ul>
+          <li>which API key type can call which endpoint,</li>
+          <li>that an <strong>NLP dataset can be created through the API</strong> even though the web form only offers vision and medical,</li>
+          <li>the three-step upload (presign, PUT, confirm), how deduplication works, and how to verify the result,</li>
+          <li>how to do all of it resumably, from a script or from an AI coding agent.</li>
+        </ul>
+        <p>This repository documents those facts as they were measured against the live API on 2026-10-26, and ships one small tool that does the work.</p>
+      </section>
+
+      <section id="quick-start">
+        <h2>Quick Start</h2>
+        <p>You need Python 3.9 or newer. There is nothing to install.</p>
+        <h3>1. Get a key</h3>
+        <p>In the EVREN web app open Settings -&gt; API Keys and create an <code>evren_plt_</code> key (it is shown once).</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>git clone https://github.com/nsozturk/evren-platform-api
+cd evren-platform-api
+export EVREN_PLATFORM_KEY="evren_plt_..."     # your own key; never commit it</code></pre>
+        <h3>2. Prepare a dataset folder</h3>
+        <p>Put your data files, a dataset card and a README in one folder:</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>mkdir my-dataset                               # put train.parquet, data.jsonl, ... in it
+cp examples/card.example.json my-dataset/card.json   # edit name, description, license, tags
+$EDITOR my-dataset/README.md                   # the dataset card shown on the platform</code></pre>
+        <h3>3. Create the dataset (private NLP; preview first)</h3>
+        <pre><button class="copy-btn" type="button">Copy</button><code>python3 tools/evren_dataset_upload.py manifest my-dataset
+python3 tools/evren_dataset_upload.py create --card my-dataset/card.json --readme my-dataset/README.md --dry-run
+python3 tools/evren_dataset_upload.py create --card my-dataset/card.json --readme my-dataset/README.md --visibility private</code></pre>
+        <h3>4. Upload</h3>
+        <p>Safe to stop and re-run at any point; it resumes.</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>python3 tools/evren_dataset_upload.py upload my-dataset</code></pre>
+        <h3>5. Verify</h3>
+        <p>Check that every file is on the server with a matching SHA-256:</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>python3 tools/evren_dataset_upload.py verify my-dataset
+# verify my-dataset: server 9 / manifest 9 | missing [] | extra [] | not ready [] -&gt; OK</code></pre>
+      </section>
+
+      <section id="tool">
+        <h2>The upload tool</h2>
+        <p><code>tools/evren_dataset_upload.py</code> has four subcommands: <code>manifest</code>, <code>create</code>, <code>upload</code> and <code>verify</code>. It prints timestamped progress lines, retries on 5xx, 429 and network errors with backoff, streams files from disk instead of loading them into memory, and keeps a journal so a re-run skips finished files.</p>
+        <p>Defaults live inside the dataset folder: <code>.evren_dataset.json</code>, <code>.evren_upload_journal.jsonl</code> and <code>.evren_upload.log</code>.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Exit code</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>0</code></td><td>Success.</td></tr>
+            <tr><td><code>1</code></td><td>The operation failed: a file failed to upload, <code>verify</code> found a mismatch, or the API returned an error.</td></tr>
+            <tr><td><code>2</code></td><td>Usage or configuration error, such as a missing <code>EVREN_PLATFORM_KEY</code> or a missing manifest.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="api-reference">
+        <h2>API reference</h2>
+        <p>The pages below mirror the Markdown files under <code>docs/api/</code> in the repository. Facts marked <em>verified</em> were exercised against the live API on 2026-10-26; <em>documented</em> means taken from the platform's own guide and not exercised by this project.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Page</th><th>Covers</th></tr></thead>
+          <tbody>
+            <tr><td><a href="#keys">Keys &amp; authentication</a></td><td>Hosts, headers, key types and scopes, response envelope</td></tr>
+            <tr><td><a href="#datasets">Datasets</a></td><td>Create, list, delete, items, catalogue search, versions, export</td></tr>
+            <tr><td><a href="#upload">Uploading files</a></td><td>Presign / PUT / confirm with curl and Python, dedup, verification, sharding, <code>.npy</code> to Parquet</td></tr>
+            <tr><td><a href="#llm-gateway">LLM gateway</a></td><td>Short orientation to the LLM gateway and its terms flow</td></tr>
+            <tr><td><a href="#errors">Errors</a></td><td>Error shape, the 401/403 cases, retry guidance, exit codes</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="keys">
+        <h2>API keys and authentication</h2>
+        <p>EVREN exposes two separate HTTP surfaces. They use different hosts, different headers and different key types. Mixing them up is the most common cause of <code>401</code> and <code>403</code> errors (see <a href="#errors">Errors</a>).</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Surface</th><th>Base URL</th><th>Auth header</th><th>Key prefix</th></tr></thead>
+          <tbody>
+            <tr><td>Platform REST API (datasets, models, billing, catalogue)</td><td><code>https://api.ssyz.org.tr/api/v1</code></td><td><code>X-API-Key: &lt;key&gt;</code></td><td><code>evren_plt_</code> (full access), <code>evren_mdl_</code> (models and inference only)</td></tr>
+            <tr><td>LLM gateway (chat, embeddings, OCR, ...)</td><td><code>https://evren-llmapi.ssyz.org.tr/v1</code></td><td><code>Authorization: Bearer &lt;key&gt;</code> (<code>X-API-Key</code> is also accepted)</td><td><code>evren_llm_</code></td></tr>
+          </tbody>
+        </table></div>
+        <p>For <code>evren_</code> keys the Platform API rejects <code>Authorization: Bearer</code> with a <code>401</code>. Always send <code>X-API-Key</code> there.</p>
+        <h3>Creating a key</h3>
+        <p>Keys are created in the EVREN web app under <strong>Settings -&gt; API Keys</strong> (<code>/api-keys</code> on <code>https://evren.ssyz.org.tr</code>). The full key is shown once; copy it when it appears.</p>
+        <ul>
+          <li>Creating, listing or uploading datasets: <code>evren_plt_</code>.</li>
+          <li>Only running models / inference: <code>evren_mdl_</code>.</li>
+          <li>Only calling the LLM gateway: <code>evren_llm_</code>.</li>
+        </ul>
+        <h3>What each key can call</h3>
+        <p>Measured against the live API on 2026-10-26:</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Key</th><th><code>GET /auth/me</code></th><th><code>GET /datasets</code></th><th><code>GET /models</code></th><th>LLM gateway <code>GET /v1/models</code></th></tr></thead>
+          <tbody>
+            <tr><td><code>evren_plt_</code></td><td>200</td><td>200</td><td>200</td><td>401</td></tr>
+            <tr><td><code>evren_mdl_</code></td><td>403 "only inference and model endpoints"</td><td>403</td><td>200</td><td>401</td></tr>
+            <tr><td><code>evren_llm_</code></td><td>401</td><td>401</td><td>401</td><td>200 after the terms are accepted, otherwise 403 <code>terms_not_accepted</code></td></tr>
+          </tbody>
+        </table></div>
+        <p>So dataset work needs an <code>evren_plt_</code> key, and an LLM-gateway key cannot touch the Platform API at all.</p>
+        <h3>Keeping the key out of your repo</h3>
+        <p>This toolkit reads the Platform key from one environment variable:</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>export EVREN_PLATFORM_KEY="evren_plt_..."   # paste your own key; never commit it</code></pre>
+        <p>Optional, macOS only: store it in the login Keychain once and load it per command so it never sits in your shell history or dotfiles.</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>security add-generic-password -s evren-platform-key -a "$USER" -w     # prompts for the value
+EVREN_PLATFORM_KEY="$(security find-generic-password -s evren-platform-key -a "$USER" -w)" \
+  python3 tools/evren_dataset_upload.py verify ./my-dataset</code></pre>
+        <h3>Smoke test</h3>
+        <pre><button class="copy-btn" type="button">Copy</button><code>curl -sS https://api.ssyz.org.tr/api/v1/auth/me -H "X-API-Key: $EVREN_PLATFORM_KEY"
+curl -sS https://api.ssyz.org.tr/api/v1/billing/balance -H "X-API-Key: $EVREN_PLATFORM_KEY"</code></pre>
+        <p><code>/billing/balance</code> returns <code>{balance, available, held, total_earned, total_spent}</code> in credits (CR).</p>
+        <h3>Response envelope</h3>
+        <p>Most endpoints answer <code>{success, data, message}</code>. Some return the object directly: <code>POST /datasets</code> returns the dataset, <code>GET /datasets</code> returns a bare list and <code>GET /models</code> returns <code>{items, total}</code>. Write client code that tolerates both shapes. The bundled uploader unwraps <code>{success, data}</code> when present.</p>
+      </section>
+
+      <section id="datasets">
+        <h2>Datasets</h2>
+        <p>Base URL <code>https://api.ssyz.org.tr/api/v1</code>, header <code>X-API-Key: &lt;evren_plt_ key&gt;</code>.</p>
+        <h3>Create a dataset: <code>POST /datasets</code> (verified)</h3>
+        <pre><button class="copy-btn" type="button">Copy</button><code>{
+  "name": "my-text-dataset",
+  "modality": "NLP",
+  "description": "What it contains.",
+  "readme": "# My dataset\n\nMarkdown card.",
+  "visibility": "private",
+  "license": "MIT",
+  "tags": ["nlp", "text"]
+}</code></pre>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Field</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code>, <code>modality</code>, <code>visibility</code></td><td>Required. <code>modality</code> is one of <code>VISION</code>, <code>AUDIO</code>, <code>NLP</code>, <code>MULTIMODAL</code>, <code>MEDICAL</code>. <code>visibility</code> is <code>public</code>, <code>private</code> or <code>unlisted</code>.</td></tr>
+            <tr><td><code>description</code>, <code>readme</code>, <code>license</code></td><td>Optional.</td></tr>
+            <tr><td><code>tags</code></td><td>Optional, at most 10.</td></tr>
+            <tr><td><code>contributions_enabled</code>, <code>org_id</code></td><td>Optional.</td></tr>
+            <tr><td><code>task_profile</code></td><td>Optional, used with <code>MEDICAL</code>.</td></tr>
+          </tbody>
+        </table></div>
+        <p>The response is the dataset object itself (not wrapped): <code>id</code>, <code>slug</code>, <code>owner_username</code>, and more. Keep the <code>id</code>; every other call uses it.</p>
+        <p><strong>NLP datasets work through the API.</strong> The web "new dataset" form only enables <code>VISION</code> and <code>MEDICAL</code>, but the API accepts <code>"modality": "NLP"</code>. This is the main non-obvious fact this project documents. Start with <code>"visibility": "private"</code> and change it only after you have verified the contents.</p>
+        <p>Changing visibility later is done in the dataset settings of the web app. The exact API call for the flip has not been verified here; a <code>PATCH</code> may exist, but treat that as unverified.</p>
+        <h3>List datasets: <code>GET /datasets</code> (verified)</h3>
+        <p>Query parameters: <code>scope</code> = <code>all</code>, <code>owned</code> or <code>shared</code> (any other value returns <code>VALIDATION_ERROR</code>), plus <code>visibility</code> and <code>modality</code> filters. The response is a bare JSON list.</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>curl -sS "https://api.ssyz.org.tr/api/v1/datasets?scope=owned&amp;modality=NLP" -H "X-API-Key: $EVREN_PLATFORM_KEY"</code></pre>
+        <h3>Resolve by owner and slug: <code>GET /datasets/{owner}/{slug}</code> (documented)</h3>
+        <p>Useful when you only know the public name.</p>
+        <h3>List items: <code>GET /datasets/{id}/items</code> (verified)</h3>
+        <p>Query: <code>limit</code> (200 at most) and <code>cursor</code>. Response:</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>{
+  "items": [
+    {"id": "...", "original_filename": "train-00000.parquet", "file_type": "document",
+     "sha256_hash": "...", "status": "ready", "split": "..."}
+  ],
+  "next_cursor": ""
+}</code></pre>
+        <p>Page until <code>next_cursor</code> is empty. Items carry the SHA-256 you uploaded, so you can verify a dataset against a local manifest by hash; <code>tools/evren_dataset_upload.py verify</code> does exactly that. In practice a <code>.jsonl</code> file becomes <code>file_type: text</code>, a <code>.parquet</code> file becomes <code>file_type: document</code>, and <code>status</code> is <code>ready</code> right after confirmation.</p>
+        <h3>Delete: <code>DELETE /datasets/{id}</code> (verified)</h3>
+        <p>Returns <code>204</code>. This removes the dataset; treat it as irreversible and only run it on datasets you created for testing.</p>
+        <h3>Search the public catalogue: <code>GET /universe/search</code> (verified)</h3>
+        <p>Query: <code>q</code>, <code>type</code> (<code>dataset</code> or <code>model</code>), <code>modality</code>, <code>limit</code>, <code>offset</code>.</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>curl -sS "https://api.ssyz.org.tr/api/v1/universe/search?q=cve&amp;type=dataset&amp;limit=5" -H "X-API-Key: $EVREN_PLATFORM_KEY"</code></pre>
+        <h3>Versions and export (documented, not exercised)</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Call</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /datasets/{id}/versions</code></td><td>List dataset versions.</td></tr>
+            <tr><td><code>GET /datasets/{id}/export/formats</code></td><td>Export formats available for the dataset.</td></tr>
+            <tr><td><code>GET /datasets/{id}/export/download?format=&lt;fmt&gt;&amp;version_tag=&lt;tag&gt;</code></td><td>Download an export. <code>format</code> is <code>YOLO_TXT</code>, <code>COCO_JSON</code>, <code>VOC_XML</code> or <code>CSV</code>.</td></tr>
+          </tbody>
+        </table></div>
+        <p>The annotation formats are aimed at vision datasets. Check <code>export/formats</code> for what a given dataset offers before relying on one.</p>
+      </section>
+
+      <section id="upload">
+        <h2>Uploading files</h2>
+        <p>Uploading is a three-step flow per file: <strong>presign</strong>, <strong>PUT</strong>, <strong>confirm</strong>. A file that is not confirmed is not added to the dataset. All three steps use <code>X-API-Key</code> and the dataset <code>id</code> from <a href="#datasets">Datasets</a>.</p>
+        <h3>What you can upload</h3>
+        <p><code>GET /datasets/upload/extensions</code> returns <code>{extensions: [...], by_file_type: {image, video, audio, text, ...}}</code>. The accepted list includes <code>.parquet</code>, <code>.arrow</code>, <code>.feather</code>, <code>.sqlite</code>, <code>.db</code>, <code>.csv</code>, <code>.tsv</code>, <code>.json</code>, <code>.jsonl</code>, <code>.ndjson</code>, <code>.txt</code>, <code>.md</code>, <code>.pdf</code>, <code>.tar</code>, <code>.tgz</code>, <code>.tar.gz</code>, common image, audio and video formats, and <code>.dcm</code>. <strong><code>.npy</code> is not accepted.</strong> Convert NumPy arrays to Parquet first.</p>
+        <h3>Step 1: presign</h3>
+        <p><code>POST /datasets/{id}/upload/presign</code></p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>{"files": [{"filename": "train-00000.parquet", "sha256_hash": "&lt;hex&gt;", "file_size": 82455248}]}</code></pre>
+        <p><code>client_uid</code> is an optional extra field on each file entry. Response:</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>{
+  "presigned_urls": [
+    {"filename": "train-00000.parquet", "sha256_hash": "&lt;hex&gt;",
+     "upload_url": "/datasets/&lt;id&gt;/upload/put?key=&lt;object key&gt;",
+     "direct_upload_url": "...", "object_key": "&lt;object key&gt;"}
+  ],
+  "duplicates": ["&lt;sha256 of files the dataset already has&gt;"]
+}</code></pre>
+        <ul>
+          <li><code>upload_url</code> is <strong>relative</strong>. Prefix it with the API base (<code>https://api.ssyz.org.tr/api/v1</code>).</li>
+          <li>If the dataset already contains a file with the same SHA-256, that hash comes back in <code>duplicates</code> and you skip the file. This makes re-runs cheap and safe.</li>
+        </ul>
+        <h3>Step 2: PUT the bytes</h3>
+        <p><code>PUT &lt;api base&gt;&lt;upload_url&gt;</code> with the raw file as the body, headers <code>X-API-Key</code> and <code>Content-Type: application/octet-stream</code>. Response: <code>{"ok": true, "key": "...", "size": N}</code>. Stream the file from disk instead of reading it into memory.</p>
+        <h3>Step 3: confirm</h3>
+        <p><code>POST /datasets/{id}/upload/confirm</code></p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>{"items": [{"object_key": "&lt;object key&gt;", "sha256_hash": "&lt;hex&gt;", "filename": "train-00000.parquet", "file_size": 82455248}]}</code></pre>
+        <p>Returns <code>201</code> with <code>{created, ids, actual_count, batch_duplicates}</code>.</p>
+        <h3>Size and sharding</h3>
+        <p>Single files of 0.7 KB, 105 MB and 316 MB all uploaded fine, at roughly 8-11 MB/s from Türkiye. No per-file limit was hit up to 316 MB. This project shards at 280 MB or less so every file stays inside what was actually tested. Split large Parquet or JSONL files into numbered shards (<code>train-00000-of-00009.parquet</code>) before uploading.</p>
+        <h3>Example: curl</h3>
+        <p>A complete single-file script lives in <code>examples/curl-upload.sh</code>. The core calls:</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>API=https://api.ssyz.org.tr/api/v1
+SHA=$(shasum -a 256 train-00000.parquet | cut -d' ' -f1)      # sha256sum on Linux
+SIZE=$(wc -c &lt; train-00000.parquet | tr -d ' ')
+
+# 1) presign
+curl -sS -X POST "$API/datasets/$DATASET_ID/upload/presign" \
+  -H "X-API-Key: $EVREN_PLATFORM_KEY" -H "Content-Type: application/json" \
+  -d "{\"files\":[{\"filename\":\"train-00000.parquet\",\"sha256_hash\":\"$SHA\",\"file_size\":$SIZE}]}"
+
+# 2) PUT (use the relative upload_url from step 1; -T streams the file)
+curl -sS -T train-00000.parquet "$API&lt;upload_url&gt;" \
+  -H "X-API-Key: $EVREN_PLATFORM_KEY" -H "Content-Type: application/octet-stream"
+
+# 3) confirm
+curl -sS -X POST "$API/datasets/$DATASET_ID/upload/confirm" \
+  -H "X-API-Key: $EVREN_PLATFORM_KEY" -H "Content-Type: application/json" \
+  -d "{\"items\":[{\"object_key\":\"&lt;object_key&gt;\",\"sha256_hash\":\"$SHA\",\"filename\":\"train-00000.parquet\",\"file_size\":$SIZE}]}"</code></pre>
+        <h3>Example: Python standard library</h3>
+        <pre><button class="copy-btn" type="button">Copy</button><code>import hashlib, json, os, urllib.request
+
+API = "https://api.ssyz.org.tr/api/v1"
+KEY = os.environ["EVREN_PLATFORM_KEY"]
+
+
+def call(method, path, body=None, stream=None, size=None):
+    headers = {"X-API-Key": KEY}
+    data = None
+    if stream is not None:                      # open file object: streamed, not read into memory
+        data = stream
+        headers.update({"Content-Type": "application/octet-stream", "Content-Length": str(size)})
+    elif body is not None:
+        data = json.dumps(body).encode()
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(API + path, data=data, method=method, headers=headers)
+    with urllib.request.urlopen(req, timeout=1800) as r:
+        raw = r.read()
+        return json.loads(raw) if raw.strip() else {}
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 &lt;&lt; 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def upload(dataset_id, path):
+    name, size, sha = os.path.basename(path), os.path.getsize(path), sha256(path)
+    pre = call("POST", f"/datasets/{dataset_id}/upload/presign",
+               {"files": [{"filename": name, "sha256_hash": sha, "file_size": size}]})
+    if sha in (pre.get("duplicates") or []):
+        return "duplicate, skipped"
+    u = pre["presigned_urls"][0]
+    with open(path, "rb") as f:
+        call("PUT", u["upload_url"], stream=f, size=size)
+    return call("POST", f"/datasets/{dataset_id}/upload/confirm",
+                {"items": [{"object_key": u["object_key"], "sha256_hash": sha, "filename": name, "file_size": size}]})</code></pre>
+        <p>This sketch has no retries or journal. For real jobs use <code>tools/evren_dataset_upload.py</code>, which adds retry with backoff on 5xx, 429 and network errors, a resumable journal, progress lines and <code>verify</code>.</p>
+        <h3>Verify</h3>
+        <p>After confirming, page through <code>GET /datasets/{id}/items?limit=200</code> (follow <code>next_cursor</code> until it is empty) and compare the <code>sha256_hash</code> values with your local manifest. Every file should be there with <code>status: ready</code>, and nothing extra. With the bundled tool:</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>python3 tools/evren_dataset_upload.py verify ./my-dataset
+# verify my-dataset: server 9 / manifest 9 | missing [] | extra [] | not ready [] -&gt; OK</code></pre>
+        <h3>Converting <code>.npy</code> to Parquet</h3>
+        <p>The platform rejects <code>.npy</code>, but Parquet is accepted and is a better container for embeddings anyway. This needs <code>pyarrow</code> and <code>numpy</code> (not required by the uploader itself). It assumes a 2-D array <code>(rows, dims)</code> and writes in chunks so large arrays do not have to fit in memory:</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+arr = np.load("vectors.npy", mmap_mode="r")          # shape (rows, dims)
+writer = None
+for start in range(0, len(arr), 100_000):
+    chunk = np.ascontiguousarray(arr[start:start + 100_000])
+    table = pa.table({
+        "id": np.arange(start, start + len(chunk)),
+        "vector": pa.FixedSizeListArray.from_arrays(pa.array(chunk.reshape(-1)), chunk.shape[1]),
+    })
+    writer = writer or pq.ParquetWriter("vectors.parquet", table.schema, compression="zstd")
+    writer.write_table(table)
+writer.close()</code></pre>
+        <p>Shard the result if it is larger than about 280 MB.</p>
+      </section>
+
+      <section id="llm-gateway">
+        <h2>LLM gateway</h2>
+        <p>This repository is about the Platform REST API for datasets. The LLM gateway is a separate service; this section only orients you.</p>
+        <div class="table-wrap"><table>
+          <tbody>
+            <tr><th>Base URL</th><td><code>https://evren-llmapi.ssyz.org.tr/v1</code></td></tr>
+            <tr><th>Auth</th><td><code>Authorization: Bearer &lt;evren_llm_ key&gt;</code> (<code>X-API-Key</code> is also accepted)</td></tr>
+            <tr><th>OpenAPI</th><td><code>https://evren-llmapi.ssyz.org.tr/openapi.json</code></td></tr>
+            <tr><th>Docs UI</th><td><code>https://evren-llmapi.ssyz.org.tr/docs</code></td></tr>
+          </tbody>
+        </table></div>
+        <p>Endpoints: <code>chat/completions</code>, <code>completions</code>, <code>messages</code> (Anthropic-style), <code>responses</code>, <code>embeddings</code>, <code>rerank</code>, <code>models</code>, <code>ocr</code>, <code>audio</code>, <code>media</code>, <code>quota</code>, and <code>terms/{status,text,accept}</code>.</p>
+        <p>Per the platform's pricing page the gateway is free, independent of credits, with limits of 15M tokens per day, 2.5M per 5 minutes and 32 concurrent requests.</p>
+        <h3>Terms must be accepted first</h3>
+        <p>The first call with a new key returns <code>403 terms_not_accepted</code> until the account accepts the gateway terms:</p>
+        <ol>
+          <li><code>/v1/terms/status</code> shows whether they are accepted.</li>
+          <li><code>GET /v1/terms/text</code> returns the terms. <strong>Read them yourself.</strong></li>
+          <li><code>POST /v1/terms/accept</code> with <code>{"version": 1}</code> records acceptance.</li>
+        </ol>
+        <p>Accepting terms is a legal act by the account owner. Scripts and coding agents should not do it for you; see <a href="#safety">Safety rules</a>.</p>
+        <h3>Models (as listed on 2026-10-26)</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Model</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>glm-5.3</code></td><td>524K context</td></tr>
+            <tr><td><code>deepseek-v4.1-flash</code></td><td>1M context</td></tr>
+            <tr><td><code>mimo-v2.6-pro</code></td><td>1M context</td></tr>
+            <tr><td><code>qwen3.8-flash-next</code></td><td>chat</td></tr>
+            <tr><td><code>gemma-4-31b</code></td><td>chat</td></tr>
+            <tr><td><code>qwen3-vl-30b</code></td><td>vision</td></tr>
+            <tr><td><code>auto</code></td><td>32K router, no tool calls</td></tr>
+          </tbody>
+        </table></div>
+        <p>The list changes; ask <code>GET /v1/models</code> for the current one.</p>
+      </section>
+
+      <section id="errors">
+        <h2>Errors</h2>
+        <h3>Shape</h3>
+        <p>Failed Platform API calls normally answer:</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>{"success": false, "error": {"code": "VALIDATION_ERROR", "message": "...", "details": {}}}</code></pre>
+        <p>Successful calls usually answer <code>{success, data, message}</code>, though some return the object or list directly. Check the HTTP status first, then read <code>error.code</code> and <code>error.message</code>.</p>
+        <h3>Cases seen while testing</h3>
+        <p>All observed on 2026-10-26.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Situation</th><th>Status</th><th>What it means / fix</th></tr></thead>
+          <tbody>
+            <tr><td><code>Authorization: Bearer evren_plt_...</code> against the Platform API</td><td>401</td><td>Use the <code>X-API-Key</code> header instead.</td></tr>
+            <tr><td><code>evren_mdl_</code> key on <code>/auth/me</code> or <code>/datasets</code></td><td>403 "only inference and model endpoints"</td><td>A models-only key. Create an <code>evren_plt_</code> key for dataset work.</td></tr>
+            <tr><td><code>evren_llm_</code> key on the Platform API (<code>/auth/me</code>, <code>/datasets</code>, <code>/models</code>)</td><td>401</td><td>LLM-gateway keys do not work on the Platform API.</td></tr>
+            <tr><td><code>evren_plt_</code> key on the LLM gateway (<code>/v1/models</code>)</td><td>401</td><td>Platform keys do not work on the gateway. Use an <code>evren_llm_</code> key.</td></tr>
+            <tr><td><code>evren_llm_</code> key on the gateway before accepting terms</td><td>403 <code>terms_not_accepted</code></td><td>Read and accept the terms yourself; see <a href="#llm-gateway">LLM gateway</a>.</td></tr>
+            <tr><td><code>GET /datasets?scope=&lt;anything but all/owned/shared&gt;</code></td><td><code>VALIDATION_ERROR</code></td><td>Use <code>all</code>, <code>owned</code> or <code>shared</code>.</td></tr>
+            <tr><td>Uploading a <code>.npy</code> file</td><td>rejected by the extension check</td><td>Convert to Parquet; see <a href="#upload">Uploading files</a>.</td></tr>
+          </tbody>
+        </table></div>
+        <p>The exact wording and code of the <code>.npy</code> rejection were not captured; check <code>GET /datasets/upload/extensions</code> before uploading.</p>
+        <h3>Retrying</h3>
+        <ul>
+          <li><code>5xx</code>, <code>429</code> and network failures are worth retrying with exponential backoff. <code>tools/evren_dataset_upload.py</code> waits 5 s, 10 s, 20 s, ... (capped at 120 s) for up to 4 attempts by default.</li>
+          <li>Other <code>4xx</code> responses are not transient. Fix the request or the key instead of retrying.</li>
+          <li>A repeated upload is safe: the server dedups by SHA-256, and the tool's journal skips files it already finished.</li>
+        </ul>
+      </section>
+
+      <section id="opencode">
+        <h2>Use it with OpenCode</h2>
+        <p><a href="https://opencode.ai" target="_blank" rel="noopener">OpenCode</a> is the first supported agent harness. The repository contains an <code>AGENTS.md</code> contract and a custom command, so an agent can publish a folder for you. Other CLIs (Claude Code, Codex, Gemini CLI, Cursor) are planned; the <code>AGENTS.md</code> contract is plain Markdown, so most of them can already read it.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Goal</th><th>Key</th><th>Where it goes</th></tr></thead>
+          <tbody>
+            <tr><td>Use EVREN-hosted models as the coding model in OpenCode</td><td><code>evren_llm_</code></td><td><code>EVREN_LLM_API_KEY</code>, read by the provider block below</td></tr>
+            <tr><td>Let the agent create and upload datasets</td><td><code>evren_plt_</code></td><td><code>EVREN_PLATFORM_KEY</code>, read by <code>tools/evren_dataset_upload.py</code></td></tr>
+          </tbody>
+        </table></div>
+        <h3>Dataset publishing with the repo's command</h3>
+        <p>The custom command lives at <code>.opencode/command/evren-publish-dataset.md</code>. OpenCode also reads <code>AGENTS.md</code> automatically as project instructions.</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>git clone https://github.com/nsozturk/evren-platform-api
+cd evren-platform-api
+export EVREN_PLATFORM_KEY="evren_plt_..."
+opencode</code></pre>
+        <p>Then, inside OpenCode:</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>/evren-publish-dataset ./path/to/my-folder</code></pre>
+        <p>The command walks the agent through: check the folder (data files plus <code>card.json</code> and <code>README.md</code>), warn about <code>.npy</code> and oversized files, preview the request with <code>--dry-run</code>, build the manifest, create a <strong>private</strong> NLP dataset, upload, verify by SHA-256, and report. It asks before anything public.</p>
+        <p>To use the command from another project, copy <code>.opencode/command/evren-publish-dataset.md</code> and <code>tools/evren_dataset_upload.py</code> into it (and adjust the script path in the command), or paste <code>GLOBAL_AGENT_RULE.md</code> into your global OpenCode instructions.</p>
+        <h3>EVREN as an OpenCode provider</h3>
+        <p>The LLM gateway speaks the OpenAI-compatible protocol. Add a provider to your <code>opencode.json</code> (this repository ships the same block as <code>opencode.example.json</code>):</p>
+        <pre><button class="copy-btn" type="button">Copy</button><code>{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "evren": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "EVREN",
+      "options": {
+        "baseURL": "https://evren-llmapi.ssyz.org.tr/v1",
+        "apiKey": "{env:EVREN_LLM_API_KEY}"
+      },
+      "models": {
+        "glm-5.3": { "name": "GLM 5.3" },
+        "deepseek-v4.1-flash": { "name": "DeepSeek V4.1 Flash" },
+        "mimo-v2.6-pro": { "name": "MiMo V2.6 Pro" }
+      }
+    }
+  }
+}</code></pre>
+        <pre><button class="copy-btn" type="button">Copy</button><code>export EVREN_LLM_API_KEY="evren_llm_..."    # your own key; never commit it
+opencode                                      # then pick evren/glm-5.3 with /models</code></pre>
+        <p>The key never appears in the file: OpenCode substitutes <code>{env:EVREN_LLM_API_KEY}</code> at load time. The first use of a new LLM key requires accepting the gateway terms, which you do yourself. For a ready-made installer, see the community project <a href="https://github.com/bykemalh/evren-llm-opencode" target="_blank" rel="noopener">bykemalh/evren-llm-opencode</a>.</p>
+      </section>
+
+      <section id="safety">
+        <h2>Safety rules for agents</h2>
+        <ul>
+          <li>The agent must never print or write <code>EVREN_PLATFORM_KEY</code>.</li>
+          <li>Datasets are created private. Making one public is your decision, made in the web app.</li>
+          <li>Accepting the LLM gateway terms is yours to do, not the agent's.</li>
+          <li>Uploaded datasets may be used by the platform for training under its user agreement; read the agreement before uploading anything you do not want used that way.</li>
+        </ul>
+      </section>
+
+      <section id="credits">
+        <h2>Platform credits</h2>
+        <p>From the platform's pricing page (2026-10-26; check it for current numbers):</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Item</th><th>Credits (CR)</th></tr></thead>
+          <tbody>
+            <tr><td>Starting balance</td><td>1000</td></tr>
+            <tr><td>Daily login</td><td>+10</td></tr>
+            <tr><td>Publishing a dataset</td><td>+5 (up to 3 per day)</td></tr>
+            <tr><td>Item milestones at 100 / 500 / 1K / 5K / 10K</td><td>+2 / +5 / +15 / +25 / +40</td></tr>
+            <tr><td>Daily earning cap</td><td>100</td></tr>
+            <tr><td>GPU training, 1x H200</td><td>10 per hour</td></tr>
+          </tbody>
+        </table></div>
+        <p>Milestones count files, not rows; unpublished datasets do not count; the datasets need at least 80 % diversity. The LLM gateway is free and independent of credits (15M tokens per day, 2.5M per 5 minutes, 32 concurrent requests). <code>GET /billing/balance</code> returns your balance.</p>
+      </section>
+
+      <section id="faq">
+        <h2>FAQ</h2>
+        <div class="faq-item">
+          <h3>Can I upload text or tabular data to EVREN?</h3>
+          <p>Yes. Accepted formats include Parquet, Arrow, Feather, SQLite, CSV, TSV, JSON, JSONL, NDJSON, TXT, Markdown and PDF, plus images, audio and video. Create the dataset with <code>"modality": "NLP"</code> and upload the files with the three-step flow in <a href="#upload">docs/api/upload.md</a>.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Why does the web form not offer NLP?</h3>
+          <p>The web "new dataset" form enables only vision and medical datasets, but the API accepts <code>NLP</code> (verified on 2026-10-26). This project does not know the platform's intent, so treat NLP-through-the-API as working today but not as a promise.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Which API key do I need?</h3>
+          <p>An <code>evren_plt_</code> key, sent in the <code>X-API-Key</code> header, for anything involving datasets. <code>evren_mdl_</code> keys are limited to models and inference; <code>evren_llm_</code> keys only work on the LLM gateway. See the <a href="#keys">table above</a>.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Is <code>.npy</code> supported?</h3>
+          <p>No. The platform's extension list does not include <code>.npy</code>. Convert arrays to Parquet; <a href="#upload">docs/api/upload.md</a> has a chunked <code>pyarrow</code> snippet.</p>
+        </div>
+        <div class="faq-item">
+          <h3>How large can a file be?</h3>
+          <p>Files of 0.7 KB, 105 MB and 316 MB all uploaded successfully, and no limit was hit up to 316 MB. The tool warns above 280 MB and the guide recommends sharding to stay within what was tested.</p>
+        </div>
+        <div class="faq-item">
+          <h3>What happens if my upload is interrupted?</h3>
+          <p>Run the same command again. Finished files are skipped from the journal, the server also deduplicates by SHA-256, and <code>verify</code> tells you whether anything is missing.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Does publishing earn credits?</h3>
+          <p>Yes, within the limits in <a href="#credits">Platform credits</a>: +5 CR per published dataset (up to three a day), plus item milestones, capped at 100 CR of earnings per day.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Is this official?</h3>
+          <p>No. It is an independent community project, not affiliated with or endorsed by SSB or the EVREN platform. See the notice at the top.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Can an AI agent run this safely?</h3>
+          <p>That is what <a href="https://github.com/nsozturk/evren-platform-api/blob/main/AGENTS.md"><code>AGENTS.md</code></a> is for: keys stay in the environment, datasets are created private, terms are never accepted on your behalf, and nothing is made public without you asking.</p>
+        </div>
+      </section>
+
+      <section id="related">
+        <h2>Related projects and alternatives</h2>
+        <p>These community projects are linked by name for convenience; no endorsement is implied and this repository does not duplicate them. They mostly cover the LLM gateway, which is a different surface from the dataset API documented here.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Project</th><th>What it is</th></tr></thead>
+          <tbody>
+            <tr><td><a href="https://github.com/bykemalh/evren-llm-opencode" target="_blank" rel="noopener">bykemalh/evren-llm-opencode</a></td><td>OpenCode LLM provider installer</td></tr>
+            <tr><td><a href="https://github.com/emuzinun/evren-mcp" target="_blank" rel="noopener">emuzinun/evren-mcp</a></td><td>MCP server for cost-approved training from Claude Code</td></tr>
+            <tr><td><a href="https://github.com/speker/evren-sdk" target="_blank" rel="noopener">speker/evren-sdk</a></td><td>Python SDK: vision inference and image upload</td></tr>
+            <tr><td><a href="https://github.com/necmettincimen/evren-cli" target="_blank" rel="noopener">necmettincimen/evren-cli</a></td><td>Terminal coding assistant on the LLM gateway</td></tr>
+            <tr><td><a href="https://github.com/zakcali/evren-chat" target="_blank" rel="noopener">zakcali/evren-chat</a></td><td>Gradio chat client</td></tr>
+            <tr><td><a href="https://github.com/erdalnacitunc-create/evren-desktop" target="_blank" rel="noopener">erdalnacitunc-create/evren-desktop</a></td><td>Windows desktop client</td></tr>
+            <tr><td><a href="https://github.com/drdoof2019/EvrenLLM-Kullanim" target="_blank" rel="noopener">drdoof2019/EvrenLLM-Kullanim</a></td><td>LLM gateway usage notes (Turkish)</td></tr>
+          </tbody>
+        </table></div>
+        <p>This repository fills the gap for text and tabular datasets, resumable transfers and AI-agent use.</p>
+        <h3>Other CLIs: planned</h3>
+        <p>OpenCode is supported first; ready-made setups for Claude Code, Codex, Gemini CLI and Cursor are planned.</p>
+      </section>
+
+      <section id="license">
+        <h2>License</h2>
+        <p>Distributed under the <a href="https://github.com/nsozturk/evren-platform-api/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>. Contributions are welcome through issues and pull requests; please keep the tool standard-library only and the tests offline. A Turkish README is available as <a href="https://github.com/nsozturk/evren-platform-api/blob/main/README.tr.md" target="_blank" rel="noopener">README.tr.md</a>.</p>
+      </section>
+
+      <p class="no-results" id="noResults">No sections match your search.</p>
+
+      <footer>
+        <p>Unofficial community project, not affiliated with SSB or the EVREN platform. Hosted on GitHub Pages. <a href="https://github.com/nsozturk/evren-platform-api" target="_blank" rel="noopener">Source on GitHub</a>.</p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      document.querySelectorAll('.copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var code = btn.parentElement.querySelector('code').innerText;
+          var done = function () { btn.innerText = 'Copied!'; setTimeout(function () { btn.innerText = 'Copy'; }, 2000); };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code).then(done, function () {});
+          }
+        });
+      });
+
+      var sections = Array.prototype.slice.call(document.querySelectorAll('main.content section'));
+      var links = Array.prototype.slice.call(document.querySelectorAll('.nav-menu-item'));
+      var input = document.getElementById('docSearch');
+      var none = document.getElementById('noResults');
+      input.addEventListener('input', function () {
+        var q = input.value.trim().toLowerCase();
+        var shown = 0;
+        sections.forEach(function (sec) {
+          var hit = !q || sec.textContent.toLowerCase().indexOf(q) !== -1;
+          sec.style.display = hit ? '' : 'none';
+          if (hit) shown++;
+        });
+        links.forEach(function (a) {
+          var sec = document.getElementById(a.getAttribute('href').slice(1));
+          a.style.display = (!q || (sec && sec.style.display !== 'none')) ? '' : 'none';
+        });
+        none.style.display = shown ? 'none' : 'block';
+      });
+
+      if ('IntersectionObserver' in window) {
+        var obs = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) {
+              links.forEach(function (a) { a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id); });
+            }
+          });
+        }, { rootMargin: '-80px 0px -70% 0px' });
+        sections.forEach(function (s) { obs.observe(s); });
+      }
+    })();
+  </script>
+</body>
+</html>

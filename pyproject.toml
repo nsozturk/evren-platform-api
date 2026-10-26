@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evren-platform-api"
+version = "0.1.0"
+description = "Unofficial guide and stdlib-only toolkit for the EVREN AI platform REST API: create datasets, upload files resumably, verify, with an OpenCode workflow."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "nsozturk"}]
+keywords = ["evren", "evren-platform", "rest-api", "dataset-upload", "resumable-upload", "nlp-datasets", "opencode", "ai-agents"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Utilities",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/nsozturk/evren-platform-api"
+Documentation = "https://github.com/nsozturk/evren-platform-api/tree/main/docs"
+
+[project.scripts]
+evren-dataset-upload = "tools.evren_dataset_upload:main"
+
+[tool.setuptools]
+packages = ["tools"]

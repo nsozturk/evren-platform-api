@@ -1,0 +1,6 @@
+{
+  "name": "my-text-dataset",
+  "description": "One or two sentences about what the dataset contains and where it comes from.",
+  "license": "MIT",
+  "tags": ["nlp", "text", "example"]
+}
