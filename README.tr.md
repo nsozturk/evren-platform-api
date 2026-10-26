@@ -168,6 +168,11 @@ Hayır. SSB veya EVREN platformu ile bağlantısı olmayan, bağımsız bir topl
 
 [`AGENTS.md`](AGENTS.md) tam olarak bunun için var: anahtarlar ortam değişkeninde kalır, veri setleri özel oluşturulur, şartlar sizin adınıza asla kabul edilmez ve siz istemeden hiçbir şey herkese açık yapılmaz.
 
+## Bu araçla yayınlananlar
+
+- [cve-threat-intelligence-hub](https://evren.ssyz.org.tr/datasets/u4be40c9fa813/cve-threat-intelligence-hub): 384 boyutlu embedding'li 400.776 CVE kaydı, 9 Parquet dosyası
+- [open-agent-db](https://evren.ssyz.org.tr/datasets/u4be40c9fa813/open-agent-db): 3,65M yapay zekâ ajanı beceri / kural / MCP metadata satırı, 13 Parquet dosyası
+
 ## İlgili projeler ve alternatifler
 
 Bu topluluk projeleri kolaylık için adıyla bağlanmıştır; onay anlamına gelmez ve bu depo onları tekrarlamaz. Çoğu, burada belgelenen veri seti API'sinden farklı bir yüzey olan LLM geçidini kapsar.

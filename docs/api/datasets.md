@@ -30,7 +30,7 @@ The response is the dataset object itself (not wrapped): `id`, `slug`, `owner_us
 
 **NLP datasets work through the API.** The web "new dataset" form only enables `VISION` and `MEDICAL`, but the API accepts `"modality": "NLP"`. This is the main non-obvious fact this project documents. Start with `"visibility": "private"` and change it only after you have verified the contents.
 
-Changing visibility later is done in the dataset settings of the web app. The exact API call for the flip has not been verified here; a `PATCH` may exist, but treat that as unverified.
+Change visibility with `PATCH /datasets/{id}` and body `{"visibility": "public"}` (or `private` / `unlisted`); it returns 200 with the updated dataset (verified 2026-10-26). The dataset settings page in the web app does the same.
 
 ## List datasets - `GET /datasets` (verified)
 

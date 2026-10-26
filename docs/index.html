@@ -417,7 +417,7 @@ curl -sS https://api.ssyz.org.tr/api/v1/billing/balance -H "X-API-Key: $EVREN_PL
         </table></div>
         <p>The response is the dataset object itself (not wrapped): <code>id</code>, <code>slug</code>, <code>owner_username</code>, and more. Keep the <code>id</code>; every other call uses it.</p>
         <p><strong>NLP datasets work through the API.</strong> The web "new dataset" form only enables <code>VISION</code> and <code>MEDICAL</code>, but the API accepts <code>"modality": "NLP"</code>. This is the main non-obvious fact this project documents. Start with <code>"visibility": "private"</code> and change it only after you have verified the contents.</p>
-        <p>Changing visibility later is done in the dataset settings of the web app. The exact API call for the flip has not been verified here; a <code>PATCH</code> may exist, but treat that as unverified.</p>
+        <p>Change visibility with <code>PATCH /datasets/{id}</code> and body <code>{"visibility": "public"}</code> (or <code>private</code> / <code>unlisted</code>); it returns 200 with the updated dataset (verified 2026-10-26). The dataset settings page in the web app does the same.</p>
         <h3>List datasets: <code>GET /datasets</code> (verified)</h3>
         <p>Query parameters: <code>scope</code> = <code>all</code>, <code>owned</code> or <code>shared</code> (any other value returns <code>VALIDATION_ERROR</code>), plus <code>visibility</code> and <code>modality</code> filters. The response is a bare JSON list.</p>
         <pre><button class="copy-btn" type="button">Copy</button><code>curl -sS "https://api.ssyz.org.tr/api/v1/datasets?scope=owned&amp;modality=NLP" -H "X-API-Key: $EVREN_PLATFORM_KEY"</code></pre>

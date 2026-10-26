@@ -57,7 +57,7 @@ Useful flags: `--log FILE`, `--retries N`, `--journal FILE` (upload), `--modalit
 
 1. **Never print, log, echo, commit or write an API key**, including in examples, test fixtures, shell history you generate or command output. Only test that it is set.
 2. **Never accept the LLM gateway terms on the user's behalf.** Point the user to `GET /v1/terms/text` and let them accept.
-3. **Never make a dataset public or unlisted without the user explicitly asking in the current conversation.** Create datasets as `private`. Changing visibility is done by the user in the web app.
+3. **Never make a dataset public or unlisted without the user explicitly asking in the current conversation.** Create datasets as `private`. When the user asks, flip with `PATCH /datasets/{id}` `{"visibility": "public"}`.
 4. **Do not delete datasets** (`DELETE /datasets/{id}`) unless the user asks for that specific dataset.
 5. Uploaded data may be used by the platform for training under its user agreement. Do not upload personal, confidential or licensed-restricted data without the user's confirmation.
 6. Do not commit `.evren_*` files, manifests of private data, or dataset contents. `.gitignore` already covers the state, journal and log files.

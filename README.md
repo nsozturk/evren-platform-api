@@ -164,6 +164,11 @@ No. It is an independent community project, not affiliated with or endorsed by S
 
 That is what [`AGENTS.md`](AGENTS.md) is for: keys stay in the environment, datasets are created private, terms are never accepted on your behalf, and nothing is made public without you asking.
 
+## Published with this tool
+
+- [cve-threat-intelligence-hub](https://evren.ssyz.org.tr/datasets/u4be40c9fa813/cve-threat-intelligence-hub): 400,776 CVE records with 384-dim embeddings, 9 Parquet files
+- [open-agent-db](https://evren.ssyz.org.tr/datasets/u4be40c9fa813/open-agent-db): 3.65M AI-agent skill / rule / MCP metadata rows, 13 Parquet files
+
 ## Related projects and alternatives
 
 These community projects are linked by name for convenience; no endorsement is implied and this repository does not duplicate them. They mostly cover the LLM gateway, which is a different surface from the dataset API documented here.
